@@ -1,0 +1,102 @@
+#!/bin/bash
+
+# Обработчик SIGINT
+trap "echo -e '\nЧтобы завершить работу, введите 'q' или 'Q'.'" SIGINT
+
+# Инициализация стеков
+declare -A stacks
+stacks[A]="8 7 6 5 4 3 2 1"
+stacks[B]=''
+stacks[C]=''
+
+move_count=1
+
+display_stacks() {
+    echo ""
+    for ((i=8; i>=1; i--)); do
+        for stack in A B C; do
+            local elements=( ${stacks[$stack]} )
+            if [[ ${#elements[@]} -ge $i ]]; then
+                printf "|%s|  " "${elements[$(( ${#elements[@]} - i ))]}"
+            else
+                printf "| |  "
+            fi
+        done
+        echo ""
+    done
+    echo "+-+  +-+  +-+"
+    echo " A    B    C "
+}
+
+validate_move() {
+    local from=$1
+    local to=$2
+    read -a from_stack <<< "${stacks[$from]}"
+    read -a to_stack <<< "${stacks[$to]}"
+
+    if [[ ${#from_stack[@]} -eq 0 ]]; then
+        echo "Стек $from пуст. Повторите ввод."
+        return 1
+    fi
+
+    if [[ ${#to_stack[@]} -gt 0 && ${from_stack[0]} -gt ${to_stack[0]} ]]; then
+        echo "Такое перемещение запрещено!"
+        return 1
+    fi
+
+    return 0
+}
+
+make_move() {
+    local from=$1
+    local to=$2
+    read -a from_stack <<< "${stacks[$from]}"
+    read -a to_stack <<< "${stacks[$to]}"
+
+    local moving_disk=${from_stack[0]}      # Верхний диск (первый в массиве)
+    from_stack=("${from_stack[@]:1}")       # Убираем верхний диск из стека
+
+    stacks[$from]="${from_stack[*]}"        # Обновляем стек отправителя
+    stacks[$to]="$moving_disk ${stacks[$to]}"  # Добавляем диск в стек получателя
+}
+
+
+check_win() {
+    if [[ "${stacks[B]}" == "8 7 6 5 4 3 2 1" || "${stacks[C]}" == "8 7 6 5 4 3 2 1" ]]; then
+        echo "Поздравляем! Вы решили головоломку за $((move_count - 1)) ходов."
+        exit 0
+    fi
+}
+
+display_stacks
+
+while true; do
+    echo -n "Ход № $move_count (откуда, куда): "
+    read -r input
+    input=${input^^} # Приводим к верхнему регистру
+
+    if [[ "$input" == "Q" ]]; then
+        exit 1
+    fi
+
+    if [[ ! "$input" =~ ^[ABC][[:space:]]?[ABC]$ ]]; then
+        echo "Неверный ввод. Введите две буквы (A, B, C)."
+        continue
+    fi
+
+    from=${input:0:1}
+    to=${input: -1}
+
+    if [[ "$from" == "$to" ]]; then
+        echo "Нельзя перемещать диск в тот же стек."
+        continue
+    fi
+
+    if validate_move "$from" "$to"; then
+        make_move "$from" "$to"
+        ((move_count++))
+    fi
+
+    display_stacks
+    check_win
+done
