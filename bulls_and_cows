@@ -1,0 +1,73 @@
+#!/bin/bash
+
+# Генерация случайного 4-значного числа с неповторяющимися цифрами
+generate_number() {
+    digits=()
+    while [[ ${#digits[@]} -lt 4 ]]; do
+        digit=$((RANDOM % 10))
+        if [[ ${#digits[@]} -eq 0 && $digit -eq 0 ]]; then
+            continue  # Первая цифра не может быть 0
+        fi
+        if ! [[ " ${digits[@]} " =~ " $digit " ]]; then
+            digits+=($digit)
+        fi
+    done
+    echo "${digits[@]}" | tr -d ' '
+}
+
+# Основная логика игры
+main() {
+    number=$(generate_number)
+    attempt=1
+
+    echo "********************************************************************************"
+    echo "* Я загадал 4-значное число с неповторяющимися цифрами. На каждом ходу делайте *"
+    echo "* попытку отгадать загаданное число. Попытка - это 4-значное число с           *"
+    echo "* неповторяющимися цифрами.                                                    *"
+    echo "********************************************************************************"
+    echo
+
+    while true; do
+        read -p "Попытка $attempt: " guess
+
+        # Проверка на выход
+        if [[ $guess =~ ^[qQ]$ ]]; then
+            echo "Выход из игры."
+            exit 1
+        fi
+
+        # Проверка корректности ввода
+        if ! [[ $guess =~ ^[0-9]{4}$ ]] || [[ $(echo $guess | grep -o . | sort | uniq -d | wc -l) -ne 0 ]]; then
+            echo "Ошибка ввода. Пожалуйста, введите 4-значное число с неповторяющимися цифрами или 'q' для выхода."
+            continue
+        fi
+
+        # Подсчет коров и быков
+        cows=0
+        bulls=0
+        for i in {0..3}; do
+            if [[ ${guess:$i:1} -eq ${number:$i:1} ]]; then
+                ((bulls++))
+            elif [[ $number =~ ${guess:$i:1} ]]; then
+                ((cows++))
+            fi
+        done
+
+        echo "Коров - $cows Быков - $bulls"
+        echo
+
+        # Проверка победы
+        if [[ $bulls -eq 4 ]]; then
+            echo "Поздравляем! Вы угадали число $number."
+            exit 0
+        fi
+
+        ((attempt++))
+    done
+}
+
+# Обработка сигнала SIGINT (Ctrl+C)
+trap 'echo "Для выхода из игры введите q или Q."' SIGINT
+
+# Запуск игры
+main
